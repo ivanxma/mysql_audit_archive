@@ -30,8 +30,7 @@ a. The archive process creates records and it may trigger AUDIT records.  Eventu
 	SELECT audit_log_filter_set_user('audituser@%', 'log_nothing');
 ```
 
-b. If there is no AUDIT record, it retrieves from the beginning.
-   So if the archive process runs everyday and there is one day (day 2) without any activity, the audit_data can be empty on day 2.  on Day 3, when it is executed, the whole audit log will be read.   A dummy operation can be logged before audit archive process so that each time audit archive is executed, there is at least 1 recond.
+b. If there is no AUDIT record [empty table for audit_data], it retrieves from the beginning for all audit records.
 
 c. auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.  You can set --rename false so that archive continue to update the same table without rename
 
