@@ -42,22 +42,26 @@ read_session = mysqlx.get_session( {
 
 
 read_session.run_sql("set audit_log_read_buffer_size=4194304")
+mystart = 1
 
 while ( 1 )  : 
   archive_empty = archive_session.run_sql("select count(*) from audit_archive.audit_data limit 1").fetch_one()
 
   if (archive_empty[0] > 0):
      search_args = archive_session.run_sql("select id+1, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
-     # x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] ) + ", \"max_array_length\": 1000 }'"
      x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] )+ " }'"
      setnext  = read_session.run_sql(x)
+     if (mystart == 1 ) :
+       tbname ="audit_archive.audit_data_" +  datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+       print("new table name is " + tbname)
+       read_session.run_sql("rename table audit_archive.audit_data to " + tbname)
+       read_session.run_sql("create table audit_archive.audit_data like " + tbname)
+       mystart = 0
   else:
      print("The archive is empty - get oldest audit event")
      # read_session.run_sql("set @nextts='{ \"start\": { \"timestamp\": \"2020-01-01\"}, \"max_array_length\": 1000 }'")
      read_session.run_sql("set @nextts='{ \"start\": { \"timestamp\": \"2020-01-01\"}  }'")
 
-  
-  
   audit_sql = ("SELECT  @@server_uuid as server_uuid, id, ts, class, event, the_account,login_ip,login_os,login_user,login_proxy,connection_id,db, "  
   " status,connection_type,connect_os,pid,_client_name,_client_version, " 
   " program_name,_platform,command,sql_command,command_status,query, " 
