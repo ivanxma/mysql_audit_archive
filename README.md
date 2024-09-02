@@ -17,5 +17,11 @@ Note :
 The archive process creates records and it may trigger AUDIT records.  Eventually, the program may run indefinitely.
 So, the archive process should be executed with a user having a filter rule to 'no-log'
 
+There are 2 python program.  
+- auditarchive3.py : It reads the audit records and insert the data to audit_data 
+- auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.
+
+
+
 
    
