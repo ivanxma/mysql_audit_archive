@@ -20,6 +20,14 @@ Note :
 The archive process creates records and it may trigger AUDIT records.  Eventually, the program may run indefinitely.
 So, the archive process should be executed with a user having a filter rule to 'no-log'
 
+The audit archive can be executed with user which it has no audit.
+	e.g.
+	SELECT audit_log_filter_set_filter('log_nothing', '{ "filter": { "log": false } }');
+	SELECT audit_log_filter_set_user('audituser@%', 'log_nothing');
+
+If there is no AUDIT record, it retrieves from the beginning.
+  So if the archive process runs everyday and there is one day (day 2) without any activity, the audit_data can be empty on day 2.  on Day 3, when it is executed, the whole audit log will be read.   A dummy operation can be logged before audit archive process so that each time audit archive is executed, there is at least 1 recond.
+
 There are 2 python program.  
 - auditarchive3.py : It reads the audit records and insert the data to audit_data 
 - auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.

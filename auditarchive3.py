@@ -7,9 +7,9 @@ def main(argv):
    global myport 
    myport = 33400
    global myuser 
-   myuser = 'root'
+   myuser = 'audituser'
    global mypass 
-   mypass = ''
+   mypass = 'audituser'
    opts, args = getopt.getopt(argv,"h:P:u:p:",["host=","port=","user=","password="])
    for opt, arg in opts:
       if opt in ("-h", "--host"):
@@ -42,8 +42,9 @@ read_session = mysqlx.get_session( {
 
 
 read_session.run_sql("set audit_log_read_buffer_size=4194304")
+the_end = False
 
-while ( 1 )  : 
+while ( not the_end )  : 
   archive_empty = archive_session.run_sql("select count(*) from audit_archive.audit_data limit 1").fetch_one()
 
   if (archive_empty[0] > 0):
@@ -105,17 +106,31 @@ while ( 1 )  :
   "   server_id VARCHAR(80) PATH '$.startup_data.server_id' " 
   "   ) " 
   ") AS auditdata;     ")
-  
-  ct1 = datetime.datetime.now();
-  readaudit = read_session.run_sql(audit_sql)
-  ct2 = datetime.datetime.now();
-  print("Audit Row Count : " + str(archive_empty[0]), "Before :", ct1, "After :", ct2, " Duration : ", ct2 - ct1)
 
+  try :
+    ct1 = datetime.datetime.now();
+    readaudit = read_session.run_sql(audit_sql)
+    ct2 = datetime.datetime.now();
+    print("Audit Row Count : " + str(archive_empty[0]), "Before :", ct1, "After :", ct2, " Duration : ", ct2 - ct1)
+  except Exception as err:
+    if str(err).find('MySQL Error (3200)') >= 0 :
+      print("end reading")
+    the_end=True
+    break
+  
+ 
   aschema=archive_session.get_schema('audit_archive')
   atable=aschema.get_table('audit_data')
 
   evt = readaudit.fetch_one_object()
+  if not evt  :
+    break;
 
+  archive_session.start_transaction()
   while evt:
+      if evt['ts'] is None :
+         the_end=True
+         break
       atable.insert(evt).execute()
       evt= readaudit.fetch_one_object()
+  archive_session.commit();

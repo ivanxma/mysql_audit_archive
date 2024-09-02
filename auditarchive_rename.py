@@ -7,9 +7,9 @@ def main(argv):
    global myport 
    myport = 33400
    global myuser 
-   myuser = 'root'
+   myuser = 'audituser'
    global mypass 
-   mypass = ''
+   mypass = 'audituser'
    opts, args = getopt.getopt(argv,"h:P:u:p:",["host=","port=","user=","password="])
    for opt, arg in opts:
       if opt in ("-h", "--host"):
@@ -34,7 +34,9 @@ if __name__ == "__main__":
 
 archive_session = mysqlx.get_session( {
   'host': myhost, 'port': myport,
-  'user': myuser, 'password': mypass} )
+  'user': myuser, 'password': mypass,
+  } )
+
 
 read_session = mysqlx.get_session( {
   'host': myhost, 'port': myport,
@@ -43,14 +45,15 @@ read_session = mysqlx.get_session( {
 
 read_session.run_sql("set audit_log_read_buffer_size=4194304")
 mystart = 1
+the_end = False
 
-while ( 1 )  : 
+while ( not the_end )  : 
   archive_empty = archive_session.run_sql("select count(*) from audit_archive.audit_data limit 1").fetch_one()
-
   if (archive_empty[0] > 0):
      search_args = archive_session.run_sql("select id+1, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
      x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] )+ " }'"
      setnext  = read_session.run_sql(x)
+     print(x)
      if (mystart == 1 ) :
        tbname ="audit_archive.audit_data_" +  datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
        print("new table name is " + tbname)
@@ -110,16 +113,31 @@ while ( 1 )  :
   "   ) " 
   ") AS auditdata;     ")
   
-  ct1 = datetime.datetime.now();
-  readaudit = read_session.run_sql(audit_sql)
-  ct2 = datetime.datetime.now();
-  print("Audit Row Count : " + str(archive_empty[0]), "Before :", ct1, "After :", ct2, " Duration : ", ct2 - ct1)
+
+  try :
+    ct1 = datetime.datetime.now();
+    readaudit = read_session.run_sql(audit_sql)
+    ct2 = datetime.datetime.now();
+    print("Audit Row Count : " + str(archive_empty[0]), "Before :", ct1, "After :", ct2, " Duration : ", ct2 - ct1)
+  except Exception as err:
+    if str(err).find('MySQL Error (3200)') >= 0 :
+      print("end reading")
+    the_end=True
+    break
+
 
   aschema=archive_session.get_schema('audit_archive')
   atable=aschema.get_table('audit_data')
 
   evt = readaudit.fetch_one_object()
+  if not evt :
+     break;
 
+  archive_session.start_transaction()
   while evt:
+      if evt['ts'] is None :
+         the_end=True
+         break
       atable.insert(evt).execute()
       evt= readaudit.fetch_one_object()
+  archive_session.commit();
