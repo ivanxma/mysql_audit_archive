@@ -5,11 +5,11 @@ def main(argv):
    global myhost
    myhost = '127.0.0.1'
    global myport 
-   myport = 33060
+   myport = 33400
    global myuser 
-   myuser = 'admin'
+   myuser = 'root'
    global mypass 
-   mypass = 'admin'
+   mypass = ''
    opts, args = getopt.getopt(argv,"h:P:u:p:",["host=","port=","user=","password="])
    for opt, arg in opts:
       if opt in ("-h", "--host"):
@@ -45,9 +45,10 @@ read_session.run_sql("set audit_log_read_buffer_size=4194304")
 
 while ( 1 )  : 
   archive_empty = archive_session.run_sql("select count(*) from audit_archive.audit_data limit 1").fetch_one()
+  print (archive_empty)
 
   if (archive_empty[0] > 0):
-     search_args = archive_session.run_sql("select id, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
+     search_args = archive_session.run_sql("select id+1, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
      # x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] ) + ", \"max_array_length\": 1000 }'"
      x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] )+ " }'"
      setnext  = read_session.run_sql(x)
@@ -114,11 +115,9 @@ while ( 1 )  :
 
   aschema=archive_session.get_schema('audit_archive')
   atable=aschema.get_table('audit_data')
-  if (archive_empty[0] > 0 ) :
-      evt = readaudit.fetch_one_object()
+  print(archive_empty[0])
 
   evt = readaudit.fetch_one_object()
-
 
   if not evt:
      break
