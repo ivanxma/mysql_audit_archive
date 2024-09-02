@@ -10,7 +10,9 @@ def main(argv):
    myuser = 'audituser'
    global mypass 
    mypass = 'audituser'
-   opts, args = getopt.getopt(argv,"h:P:u:p:",["host=","port=","user=","password="])
+   global myrename
+   myrename = True
+   opts, args = getopt.getopt(argv,"h:P:u:p:r:",["host=","port=","user=","password=","rename="])
    for opt, arg in opts:
       if opt in ("-h", "--host"):
          myhost = arg
@@ -22,9 +24,14 @@ def main(argv):
          myuser = arg
       elif opt in ("-p", "--password"):
          mypass = arg
-   print ('host = ', myhost)
-   print ('port = ', myport)
-   print ('user = ', myuser)
+      elif opt in ("-p", "--rename"):
+         if arg == "false" :
+            myrename = False
+#   print ('host = ', myhost)
+#   print ('host = ', myhost)
+#   print ('port = ', myport)
+#   print ('user = ', myuser)
+#   print ('rename = ', myrename)
 #   print ('password = ', mypass)
 
 print (__name__)
@@ -44,36 +51,40 @@ read_session = mysqlx.get_session( {
 
 
 read_session.run_sql("set audit_log_read_buffer_size=4194304")
-mystart = 1
+mystart = 0
 the_end = False
 
 while ( not the_end )  : 
   archive_empty = archive_session.run_sql("select count(*) from audit_archive.audit_data limit 1").fetch_one()
   if (archive_empty[0] > 0):
-     search_args = archive_session.run_sql("select id+1, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
+     search_args = archive_session.run_sql("select id, ts from audit_archive.audit_data order by ts desc, id desc limit 1").fetch_one()
      x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] )+ " }'"
      setnext  = read_session.run_sql(x)
      print(x)
-     if (mystart == 1 ) :
+     if (mystart == 0 and myrename ) :
        tbname ="audit_archive.audit_data_" +  datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-       print("new table name is " + tbname)
+       # print("new table name is " + tbname)
        read_session.run_sql("rename table audit_archive.audit_data to " + tbname)
        read_session.run_sql("create table audit_archive.audit_data like " + tbname)
-       mystart = 0
   else:
-     print("The archive is empty - get oldest audit event")
+     # print("The archive is empty - get oldest audit event")
      # read_session.run_sql("set @nextts='{ \"start\": { \"timestamp\": \"2020-01-01\"}, \"max_array_length\": 1000 }'")
      read_session.run_sql("set @nextts='{ \"start\": { \"timestamp\": \"2020-01-01\"}  }'")
+  mystart = mystart + 1
 
-  audit_sql = ("SELECT  @@server_uuid as server_uuid, id, ts, class, event, the_account,login_ip,login_os,login_user,login_proxy,connection_id,db, "  
+  audit_sql1 = ("SELECT  @@server_uuid as server_uuid, id, ts, class, event, the_account,login_ip,login_os,login_user,login_proxy,connection_id,db, "  
   " status,connection_type,connect_os,pid,_client_name,_client_version, " 
   " program_name,_platform,command,sql_command,command_status,query, " 
   " query_status,start_server_id,server_os_version,server_mysqlversion,args, " 
   " account_host,mysql_version,the_os,the_os_ver,server_id " 
   "FROM " 
   "JSON_TABLE " 
-  "( " 
-  "  AUDIT_LOG_READ(@nextts), " 
+  "( ")
+ 
+  audit_sqlx = "  AUDIT_LOG_READ(@nextts), " 
+  audit_sqly = "  AUDIT_LOG_READ(), " 
+
+  audit_sql2 = (
   "  '$[*]' " 
   "  COLUMNS " 
   "  ( " 
@@ -112,6 +123,13 @@ while ( not the_end )  :
   "   server_id VARCHAR(80) PATH '$.startup_data.server_id' " 
   "   ) " 
   ") AS auditdata;     ")
+
+  if mystart == 1 :
+    audit_sql = audit_sql1 + audit_sqlx + audit_sql2
+  else :
+    audit_sql = audit_sql1 + audit_sqly + audit_sql2
+
+  # print(audit_sql)
   
 
   try :
@@ -121,22 +139,32 @@ while ( not the_end )  :
     print("Audit Row Count : " + str(archive_empty[0]), "Before :", ct1, "After :", ct2, " Duration : ", ct2 - ct1)
   except Exception as err:
     if str(err).find('MySQL Error (3200)') >= 0 :
-      print("end reading")
+      print("end reading - ", err)
     the_end=True
     break
 
 
   aschema=archive_session.get_schema('audit_archive')
   atable=aschema.get_table('audit_data')
+  
 
   evt = readaudit.fetch_one_object()
   if not evt :
      break;
 
+  # this is to skip the duplicate record from last max
+  if (archive_empty[0] > 0):
+     if mystart == 1 :
+        evt = readaudit.fetch_one_object()
+  if not evt :
+     break;
+         
+
   archive_session.start_transaction()
   while evt:
       if evt['ts'] is None :
-         the_end=True
+         print("ts none")
+         # the_end=True
          break
       atable.insert(evt).execute()
       evt= readaudit.fetch_one_object()

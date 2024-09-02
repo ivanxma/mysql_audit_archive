@@ -8,30 +8,35 @@
 
 Reference : https://dev.mysql.com/blog-archive/mysql-audit-data-consolidation-made-simple/
 
-1. Firstly to create the DB and Table
-2. Change the auditarchive.py with default variables to connect to DB (ip, port, user, password)
-3. The python program can be executed using mysqlsh
+1. Create the DB and Table [01-createTable.sh]
+2. Create audit user  [02-createAuditUser.sh]
+3. Setup Audit rule for log and log_nothing rules and assign to user [03-createAuditFilter.sh]
+   - Assign log_nothing rule to audituser, 
+   - Assign log_all to % 
+## Change the auditarchive.py with default variables to connect to DB (ip, port, user, password) [auditarchive.py ]
+4. The python program can be executed using mysqlsh  [04-runAuditArchive.sh]
 ```python
-   mysqlsh --py < auditarchive.py 
+   mysqlsh --py --file auditarchive_rename.py [--host db] [--port port] [--user user] [--password password] [--rename [true|false] ]
 ```
 
 
 Note :
-The archive process creates records and it may trigger AUDIT records.  Eventually, the program may run indefinitely.
-So, the archive process should be executed with a user having a filter rule to 'no-log'
+a. The archive process creates records and it may trigger AUDIT records.  Eventually, the program may run indefinitely.
+   So, the archive process should be executed with a user having a filter rule to 'no-log'
 
-The audit archive can be executed with user which it has no audit.
+   The audit archive can be executed with user which it has no audit.
 ```sql
 	SELECT audit_log_filter_set_filter('log_nothing', '{ "filter": { "log": false } }');
 	SELECT audit_log_filter_set_user('audituser@%', 'log_nothing');
 ```
 
-If there is no AUDIT record, it retrieves from the beginning.
-  So if the archive process runs everyday and there is one day (day 2) without any activity, the audit_data can be empty on day 2.  on Day 3, when it is executed, the whole audit log will be read.   A dummy operation can be logged before audit archive process so that each time audit archive is executed, there is at least 1 recond.
+b. If there is no AUDIT record, it retrieves from the beginning.
+   So if the archive process runs everyday and there is one day (day 2) without any activity, the audit_data can be empty on day 2.  on Day 3, when it is executed, the whole audit log will be read.   A dummy operation can be logged before audit archive process so that each time audit archive is executed, there is at least 1 recond.
 
-There are 2 python program.  
-- auditarchive3.py : It reads the audit records and insert the data to audit_data 
-- auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.
+c. auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.  You can set --rename false so that archive continue to update the same table without rename
+
+d. the message output : end reading -  MySQL Error (3200): Session.run_sql: audit_log_read UDF failed; Reader not initialized.
+   It is normal.   Reading the audit log to end point generates the error message.
 
 
 
