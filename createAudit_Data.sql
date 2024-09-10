@@ -1,5 +1,17 @@
 CREATE DATABASE if not exists audit_archive;
 
+
+CREATE TABLE if not exists audit_archive.audit_config (
+	server_uuid varchar(45) not null primary key,
+	ts timestamp  not null,
+	id int not null
+	);
+
+delete from audit_archive.audit_config where server_uuid = @@server_uuid;
+
+insert into audit_archive.audit_config 
+	select @@server_uuid, m.* from  JSON_TABLE( audit_log_read_bookmark(),  '$'  COLUMNS ( ts timestamp path '$.timestamp', id int path '$.id')) m;
+
 CREATE TABLE if not exists audit_archive.`audit_data` (
   `server_uuid` varchar(45) NOT NULL,
   `id` int NOT NULL,
@@ -37,3 +49,7 @@ CREATE TABLE if not exists audit_archive.`audit_data` (
   `server_id` varchar(80) DEFAULT NULL,
   PRIMARY KEY (`server_uuid`,`id`,`ts`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+create table if not exists audit_archive.audit_data_template like audit_archive.audit_data;
+
+

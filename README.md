@@ -9,14 +9,26 @@
 Reference : https://dev.mysql.com/blog-archive/mysql-audit-data-consolidation-made-simple/
 
 1. Create the DB and Table [01-createTable.sh]
+   It creates the audit_config which includes the starting bookmark as current.  
+   It creates audit_data_template table which is used as template table for TABLE audit_data
+   
 2. Create audit user  [02-createAuditUser.sh]
+   The user has the privilege for mysqlsh to dumpTable
+   The user has ALL privilege for audit_archive database
+
 3. Setup Audit rule for log and log_nothing rules and assign to user [03-createAuditFilter.sh]
    - Assign log_nothing rule to audituser, 
    - Assign log_all to % 
+
 ## Change the auditarchive.py with default variables to connect to DB (ip, port, user, password) [auditarchive.py ]
 4. The python program can be executed using mysqlsh  [04-runAuditArchive.sh]
-```python
-   mysqlsh --py --file auditarchive_rename.py [--host db] [--port port] [--user user] [--password password] [--rename [true|false] ]
+```bash
+   mysqlsh --py --file auditarchive_rename.py [--host db] [--port port] [--user user] [--password password] [--rename true|false] [--osbucket bucket --osnamespace namespace]
+```
+
+Here is another example to dump to Object Storage once the audit data is archived.
+```bash
+   mysqlsh --py --file auditarchive_rename.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace]
 ```
 
 
@@ -30,9 +42,9 @@ a. The archive process creates records and it may trigger AUDIT records.  Eventu
 	SELECT audit_log_filter_set_user('audituser@%', 'log_nothing');
 ```
 
-b. If there is no AUDIT record [empty table for audit_data], it retrieves from the beginning for all audit records.
+b. The audit_archive.audit_config contains the @@server_uuid entry with ts, id.  This is the entry point to start.  Each time the program finished, it is updated with the last audit record entry.
 
-c. auditarchive_rename.py : Each time it starts, it renames the audit_data to audit_data_<timestamp> if the audit_data is not an empty table.   New reocrds are written to audit_data table.  You can set --rename false so that archive continue to update the same table without rename
+c. auditarchive.py : Each time it starts, it retrieves the audit records and writes to the audit_data.  Once all audit records are fetched and written.   The audit_data table is renamed to audit_data_<timestamp>.  And the table is dumped to OBJECT STORAGE. 
 
 d. the message output : end reading -  MySQL Error (3200): Session.run_sql: audit_log_read UDF failed; Reader not initialized.
    It is normal.   Reading the audit log to end point generates the error message.
