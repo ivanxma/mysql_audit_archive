@@ -23,12 +23,17 @@ Reference : https://dev.mysql.com/blog-archive/mysql-audit-data-consolidation-ma
 ## Change the auditarchive.py with default variables to connect to DB (ip, port, user, password) [auditarchive.py ]
 4. The python program can be executed using mysqlsh  [04-runAuditArchive.sh]
 ```bash
-   mysqlsh --py --file auditarchive_rename.py [--host db] [--port port] [--user user] [--password password] [--rename true|false] [--osbucket bucket --osnamespace namespace]
+   mysqlsh --py --file auditarchive.py [--host db] [--port port] [--user user] [--password password] [--rename true|false] [--osbucket bucket --osnamespace namespace]
 ```
 
 Here is another example to dump to Object Storage once the audit data is archived.
 ```bash
-   mysqlsh --py --file auditarchive_rename.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace]
+   mysqlsh --py --file auditarchive.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace]
+```
+
+The following command allows export in CSV file format using util.export_table. (method=[dump|export], default is dump)
+```bash
+   mysqlsh --py --file auditarchive.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace] --method=export
 ```
 
 
