@@ -31,9 +31,9 @@ Here is another example to dump to Object Storage once the audit data is archive
    mysqlsh --py --file auditarchive.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace]
 ```
 
-The following command allows export in CSV file format using util.export_table. (method=[dump|export], default is dump)
+The following command allows export in CSV file format using util.export_table. (method=[dump|export], default is dump).  The archiveHost is used specifically if the audit log is retrieved from REPLICA.  It is READONLY.   The audit_archive database with tables and data must be updateable.  So the option 'archiveHost' is defined to allow archiving process to export the audit data from the READ-ONLY db but creating the data on the archiveHost.
 ```bash
-   mysqlsh --py --file auditarchive.py --rename true --host [db ip]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace] --method=export
+   mysqlsh --py --file auditarchive.py --rename true --host [db ip] --archiveHost [writeable DB IP]  --user audituser  --password [password] --port [33060] --osbucket=[bucket] --osnamespace=[namespace] --method=export
 ```
 
 

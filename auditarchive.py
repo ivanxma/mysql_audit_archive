@@ -20,8 +20,11 @@ def main(argv):
    osarg=0
    global mymethod
    mymethod='dump'
+   global myarchiveHost
 
-   opts, args = getopt.getopt(argv,"h:P:u:p:r:b:n:m:",["host=","port=","user=","password=","rename=", "osbucket=", "osnamespace=", "method="])
+
+   myarchiveHost='null'
+   opts, args = getopt.getopt(argv,"h:P:u:p:r:b:n:m:a:",["host=","port=","user=","password=","rename=", "osbucket=", "osnamespace=", "method=", "archiveHost="])
    for opt, arg in opts:
       if opt in ("-h", "--host"):
          myhost = arg
@@ -42,7 +45,11 @@ def main(argv):
          osarg=osarg+1
       elif opt in ("-m", "--method"):
          mymethod = arg
+      elif opt in ("-a", "--archiveHost"):
+         myarchiveHost = arg
 
+   if  myarchiveHost == "null":
+       myarchiveHost = myhost
 
 
 if __name__ == "__main__":
@@ -54,13 +61,17 @@ if (osarg == 1) :
   exit()  
 
 archive_session = mysqlx.get_session( {
-  'host': myhost, 'port': myport,
+  'host': myarchiveHost, 'port': myport,
   'user': myuser, 'password': mypass,
   } )
 
 read_session = mysqlx.get_session( {
   'host': myhost, 'port': myport,
   'user': myuser, 'password': mypass} )
+readServerUUID = read_session.run_sql("select @@server_uuid; ").fetch_one()
+print("read server uuid : ", readServerUUID[0])
+print("set @read_serveruuid = '" + readServerUUID[0]  + "'")
+archive_session.run_sql("set @read_serveruuid = '" + readServerUUID[0]  + "'")
 
 read_session.run_sql("set audit_log_read_buffer_size=4194304")
 mystart = 0
@@ -119,7 +130,7 @@ audit_sql2 = (
 ") AS auditdata;     ")
 
 archive_session.run_sql("create table if not exists audit_archive.audit_data like audit_archive.audit_data_template")
-search_args = archive_session.run_sql("select id, ts from audit_archive.audit_config where server_uuid = @@server_uuid ").fetch_one()
+search_args = archive_session.run_sql("select id, ts from audit_archive.audit_config where server_uuid = @read_serveruuid ").fetch_one()
 x = "set @nextts ='{ \"timestamp\": \"" + str(search_args[1]) + "\",\"id\":" + str(search_args[0] )+ " }'"
 setnext  = read_session.run_sql(x)
 
@@ -172,7 +183,7 @@ while ( not the_end )  :
 
 
 if mystart > 0 :
-  archive_session.run_sql("replace audit_archive.audit_config select @@server_uuid, ts,id from audit_archive.audit_data order by ts desc, id desc limit 1")
+  archive_session.run_sql("replace audit_archive.audit_config select @read_serveruuid, ts,id from audit_archive.audit_data order by ts desc, id desc limit 1")
   tbname ="audit_data_" +  datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
   if ( myrename ) :
     dumptablename = tbname
