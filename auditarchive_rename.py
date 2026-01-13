@@ -99,7 +99,7 @@ audit_sql2 = (
 "    command VARCHAR(40) PATH '$.general_data.command', " 
 "    sql_command VARCHAR(40) PATH '$.general_data.sql_command', " 
 "    command_status VARCHAR(40) PATH '$.general_data.status', " 
-"    query VARCHAR(40) PATH '$.genera_data.query', " 
+"    query VARCHAR(4096) PATH '$.genera_data.query', " 
 "    query_status INT PATH '$.general_data.status', " 
 "    start_server_id VARCHAR(400) PATH  '$.startup_data.server_id', " 
 "    server_os_version VARCHAR(100) PATH '$.startup_data.os_version', " 

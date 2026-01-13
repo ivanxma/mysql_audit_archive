@@ -36,7 +36,7 @@ CREATE TABLE if not exists audit_archive.`audit_data` (
   `command` varchar(40) DEFAULT NULL,
   `sql_command` varchar(40) DEFAULT NULL,
   `command_status` varchar(40) DEFAULT NULL,
-  `query` varchar(40) DEFAULT NULL,
+  `query` varchar(4096) DEFAULT NULL,
   `query_status` int DEFAULT NULL,
   `start_server_id` varchar(400) DEFAULT NULL,
   `server_os_version` varchar(100) DEFAULT NULL,
